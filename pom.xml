@@ -16,8 +16,8 @@
         <log4jdbc.log4j2.version>1.16</log4jdbc.log4j2.version>
         <jooq.version>3.17.16</jooq.version>
         <jooq.db.name>pay-share-bot</jooq.db.name>
-        <jooq.db.port>5432</jooq.db.port>
-        <jooq.db.user>pay-share-bot</jooq.db.user>
+        <jooq.db.port>5434</jooq.db.port>
+        <jooq.db.user>pay-share-bot-user</jooq.db.user>
         <jooq.db.password>Q1W2E3R4</jooq.db.password>
         <jooq.db.url>jdbc:postgresql://localhost:${jooq.db.port}/${jooq.db.name}</jooq.db.url>
         <telegram.bot.verson>6.9.7.1</telegram.bot.verson>
@@ -122,16 +122,94 @@
 
     <profiles>
         <profile>
-            <id>jooq-codegen</id>
+            <id>jooq-docker-codegen</id>
             <build>
                 <plugins>
+                    <!-- 1. Запуск PostgreSQL в Docker -->
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.40.2</version>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>postgres:15.7</name>
+                                    <run>
+                                        <ports>
+                                            <port>${jooq.db.port}:5434</port>
+                                        </ports>
+                                        <env>
+                                            <POSTGRES_DB>${jooq.db.name}</POSTGRES_DB>
+                                            <POSTGRES_USER>${jooq.db.user}</POSTGRES_USER>
+                                            <POSTGRES_PASSWORD>${jooq.db.password}</POSTGRES_PASSWORD>
+<!--                                            <LC_ALL>en_US.UTF-8</LC_ALL>-->
+<!--                                            <LANG>en_US.UTF-8</LANG>-->
+                                        </env>
+<!--                                        <volumes>-->
+<!--                                            <bind>-->
+<!--                                                &lt;!&ndash; Путь к SQL-миграциям &ndash;&gt;-->
+<!--                                                <volume>${project.basedir}/src/main/resources/db/migration:/docker-entrypoint-initdb.d</volume>-->
+<!--                                            </bind>-->
+<!--                                        </volumes>-->
+                                        <wait>
+                                            <!-- Ожидание старта PostgreSQL -->
+                                            <log>database system is ready to accept connections</log>
+                                            <time>120000</time>
+                                        </wait>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>start-docker</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>start</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>stop-docker</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- 2. Применение миграций через Flyway -->
+                    <plugin>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-maven-plugin</artifactId>
+                        <version>8.5.13</version>
+                        <configuration>
+                            <url>${jooq.db.url}</url>
+                            <user>${jooq.db.user}</user>
+                            <password>${jooq.db.password}</password>
+                            <locations>
+                                <location>filesystem:src/main/resources/db/migration</location>
+                            </locations>
+                            <encoding>UTF-8</encoding>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>migrate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- 3. Генерация jOOQ-кода -->
                     <plugin>
                         <groupId>org.jooq</groupId>
                         <artifactId>jooq-codegen-maven</artifactId>
                         <version>${jooq.version}</version>
                         <executions>
                             <execution>
-                                <phase>generate-sources</phase>
+                                <phase>post-integration-test</phase>
                                 <goals>
                                     <goal>generate</goal>
                                 </goals>
@@ -147,9 +225,9 @@
                         <configuration>
                             <jdbc>
                                 <driver>org.postgresql.Driver</driver>
-                                <url>jdbc:postgresql://localhost:5432/pay-share-bot</url>
-                                <user>pay-share-bot</user>
-                                <password>Q1W2E3R4</password>
+                                <url>${jooq.db.url}</url>
+                                <user>${jooq.db.user}</user>
+<!--                                <password>${jooq.db.password}</password>-->
                             </jdbc>
                             <generator>
                                 <database>
@@ -157,6 +235,12 @@
                                     <includes>.*</includes>
                                     <excludes>schema_version</excludes>
                                     <inputSchema>public</inputSchema>
+                                    <properties>
+                                        <property>
+                                            <key>defaultNameCase</key>
+                                            <value>as_is</value>
+                                        </property>
+                                    </properties>
                                 </database>
                                 <generate>
                                     <deprecated>false</deprecated>
@@ -172,6 +256,58 @@
                 </plugins>
             </build>
         </profile>
+
+        <!--        <profile>-->
+        <!--            <id>jooq-codegen</id>-->
+        <!--            <build>-->
+        <!--                <plugins>-->
+        <!--                    <plugin>-->
+        <!--                        <groupId>org.jooq</groupId>-->
+        <!--                        <artifactId>jooq-codegen-maven</artifactId>-->
+        <!--                        <version>${jooq.version}</version>-->
+        <!--                        <executions>-->
+        <!--                            <execution>-->
+        <!--                                <phase>generate-sources</phase>-->
+        <!--                                <goals>-->
+        <!--                                    <goal>generate</goal>-->
+        <!--                                </goals>-->
+        <!--                            </execution>-->
+        <!--                        </executions>-->
+        <!--                        <dependencies>-->
+        <!--                            <dependency>-->
+        <!--                                <groupId>org.postgresql</groupId>-->
+        <!--                                <artifactId>postgresql</artifactId>-->
+        <!--                                <version>42.2.5</version>-->
+        <!--                            </dependency>-->
+        <!--                        </dependencies>-->
+        <!--                        <configuration>-->
+        <!--                            <jdbc>-->
+        <!--                                <driver>org.postgresql.Driver</driver>-->
+        <!--                                <url>jdbc:postgresql://localhost:${jooq.db.port}/${jooq.db.name}</url>-->
+        <!--                                <user>${jooq.db.user}</user>-->
+        <!--                                <password>${jooq.db.password}</password>-->
+        <!--                            </jdbc>-->
+        <!--                            <generator>-->
+        <!--                                <database>-->
+        <!--                                    <name>org.jooq.meta.postgres.PostgresDatabase</name>-->
+        <!--                                    <includes>.*</includes>-->
+        <!--                                    <excludes>schema_version</excludes>-->
+        <!--                                    <inputSchema>public</inputSchema>-->
+        <!--                                </database>-->
+        <!--                                <generate>-->
+        <!--                                    <deprecated>false</deprecated>-->
+        <!--                                    <routines>false</routines>-->
+        <!--                                </generate>-->
+        <!--                                <target>-->
+        <!--                                    <packageName>com.pay-share</packageName>-->
+        <!--                                    <directory>src/gen/java</directory>-->
+        <!--                                </target>-->
+        <!--                            </generator>-->
+        <!--                        </configuration>-->
+        <!--                    </plugin>-->
+        <!--                </plugins>-->
+        <!--            </build>-->
+        <!--        </profile>-->
     </profiles>
 
 </project>
