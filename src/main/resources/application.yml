@@ -1,2 +1,15 @@
-telegram.bot.username: Pay Share Bot
-telegram.bot.token: 7365929840:AAEZx2nLo9kFkBSocpnGpWLErEA6ueYTJkA
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/pay-share-bot
+    username: pay-share-bot-user
+    password: Q1W2E3R4
+  flyway:
+    locations: classpath:db/migration
+    table: schema_version
+    baselineOnMigrate: true
+
+telegram:
+  bot:
+    username: Pay Share Bot
+    token: 7365929840:AAEZx2nLo9kFkBSocpnGpWLErEA6ueYTJkA

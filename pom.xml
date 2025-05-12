@@ -17,7 +17,7 @@
         <jooq.version>3.17.16</jooq.version>
         <jooq.db.name>pay-share-bot</jooq.db.name>
         <jooq.db.port>5432</jooq.db.port>
-        <jooq.db.user>pay-share-bot</jooq.db.user>
+        <jooq.db.user>pay-share-bot-user</jooq.db.user>
         <jooq.db.password>Q1W2E3R4</jooq.db.password>
         <jooq.db.url>jdbc:postgresql://localhost:${jooq.db.port}/${jooq.db.name}</jooq.db.url>
         <telegram.bot.verson>6.9.7.1</telegram.bot.verson>
@@ -42,6 +42,10 @@
         </dependency>
 
         <!-- Работа с БД -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -147,9 +151,9 @@
                         <configuration>
                             <jdbc>
                                 <driver>org.postgresql.Driver</driver>
-                                <url>jdbc:postgresql://localhost:5432/pay-share-bot</url>
-                                <user>pay-share-bot</user>
-                                <password>Q1W2E3R4</password>
+                                <url>${jooq.db.url}</url>
+                                <user>${jooq.db.user}</user>
+                                <password>${jooq.db.password}</password>
                             </jdbc>
                             <generator>
                                 <database>
